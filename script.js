@@ -335,7 +335,11 @@ async function sendRequest() {
         };
 
         if (bodyType === 'form') {
-            delete options.headers['Content-Type'];
+            Object.keys(options.headers).forEach(key => {
+                if (key.toLowerCase() === 'content-type') {
+                    delete options.headers[key];
+                }
+            });
             options.body = buildFormData();
         } else if (method !== 'GET' && method !== 'HEAD') {
             const body = document.getElementById('body').value;
@@ -350,12 +354,13 @@ async function sendRequest() {
 
         const contentType = response.headers.get('content-type');
         let responseText = '';
+        const responseClone = response.clone();
 
-        if (contentType && contentType.includes('application/json')) {
+        try {
             const jsonData = await response.json();
             responseText = JSON.stringify(jsonData, null, 2);
-        } else {
-            responseText = await response.text();
+        } catch (e) {
+            responseText = await responseClone.text();
         }
 
         statusEl.textContent = `状态: ${response.status} ${response.statusText}`;
@@ -380,7 +385,16 @@ async function sendRequest() {
 
         statusEl.textContent = '状态: 错误';
         timeEl.textContent = `时间: ${duration} ms`;
-        responseBodyEl.textContent = `请求失败: ${error.message}\n\n注意: 如果目标API没有正确的CORS配置，浏览器会阻止跨域请求。`;
+
+        let errorMessage = `请求失败: ${error.message}`;
+        if (error.message.includes('Failed to fetch')) {
+            errorMessage += '\n\n可能的原因：';
+            errorMessage += '\n1. 目标API没有正确的CORS配置，浏览器阻止了跨域请求';
+            errorMessage += '\n2. 网络连接失败或服务器不可达';
+            errorMessage += '\n3. 请求被浏览器扩展（如广告拦截器）阻止';
+            errorMessage += '\n4. SSL证书问题（HTTPS请求）';
+        }
+        responseBodyEl.textContent = errorMessage;
         statusEl.style.color = '#f44336';
     }
 }
