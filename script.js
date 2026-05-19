@@ -233,6 +233,11 @@ function initCurlUpdate() {
     bodyTypeSelect.addEventListener('change', updateCurlPreview);
     bodyTextarea.addEventListener('input', updateCurlPreview);
 
+    const proxyEnabled = document.getElementById('proxy-enabled');
+    const proxyUrlInput = document.getElementById('proxy-url');
+    proxyEnabled.addEventListener('change', updateCurlPreview);
+    proxyUrlInput.addEventListener('input', updateCurlPreview);
+
     const headersContainer = document.getElementById('headers-container');
     headersContainer.addEventListener('input', updateCurlPreview);
 }
@@ -305,6 +310,25 @@ function copyCurl() {
     });
 }
 
+function toggleProxyHelp() {
+    const panel = document.getElementById('proxy-help-panel');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function isProxyEnabled() {
+    return document.getElementById('proxy-enabled').checked;
+}
+
+function getProxyUrl() {
+    return document.getElementById('proxy-url').value.trim();
+}
+
+function buildProxyRequestUrl(targetUrl) {
+    const proxyUrl = getProxyUrl();
+    if (!proxyUrl) return targetUrl;
+    return proxyUrl;
+}
+
 async function sendRequest() {
     const method = document.getElementById('method').value;
     const url = document.getElementById('url').value;
@@ -331,8 +355,16 @@ async function sendRequest() {
     try {
         const options = {
             method: method,
-            headers: headers
+            headers: { ...headers }
         };
+
+        const useProxy = isProxyEnabled();
+        let fetchUrl = url;
+
+        if (useProxy) {
+            fetchUrl = buildProxyRequestUrl(url);
+            options.headers['x-proxy-url'] = url;
+        }
 
         if (bodyType === 'form') {
             Object.keys(options.headers).forEach(key => {
@@ -348,11 +380,10 @@ async function sendRequest() {
             }
         }
 
-        const response = await fetch(url, options);
+        const response = await fetch(fetchUrl, options);
         const endTime = performance.now();
         const duration = (endTime - startTime).toFixed(2);
 
-        const contentType = response.headers.get('content-type');
         let responseText = '';
         const responseClone = response.clone();
 
@@ -369,7 +400,9 @@ async function sendRequest() {
 
         let headersText = '';
         response.headers.forEach((value, key) => {
-            headersText += `${key}: ${value}\n`;
+            if (key !== 'access-control-allow-origin' && key !== 'access-control-allow-headers' && key !== 'access-control-allow-methods' && key !== 'access-control-expose-headers') {
+                headersText += `${key}: ${value}\n`;
+            }
         });
         responseHeadersEl.textContent = headersText;
 
@@ -393,6 +426,7 @@ async function sendRequest() {
             errorMessage += '\n2. 网络连接失败或服务器不可达';
             errorMessage += '\n3. 请求被浏览器扩展（如广告拦截器）阻止';
             errorMessage += '\n4. SSL证书问题（HTTPS请求）';
+            errorMessage += '\n\n提示: 勾选"代理模式"并运行 node proxy.js 可绕过CORS限制';
         }
         responseBodyEl.textContent = errorMessage;
         statusEl.style.color = '#f44336';

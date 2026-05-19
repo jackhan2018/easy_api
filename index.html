@@ -28,6 +28,25 @@
                     <button id="sendBtn">发送请求</button>
                 </div>
 
+                <div class="proxy-bar">
+                    <label class="proxy-toggle">
+                        <input type="checkbox" id="proxy-enabled">
+                        <span>代理模式</span>
+                    </label>
+                    <input type="text" id="proxy-url" placeholder="代理地址 (例如: http://localhost:8888)" value="http://localhost:8888">
+                    <a href="javascript:void(0)" class="proxy-help" onclick="toggleProxyHelp()">?</a>
+                </div>
+                <div id="proxy-help-panel" style="display: none;">
+                    <p><strong>代理模式说明：</strong>当目标 API 不支持 CORS 时，通过本地代理转发请求来绕过限制。</p>
+                    <p><strong>使用步骤：</strong></p>
+                    <ol>
+                        <li>在本地运行代理：<code>node proxy.js</code>（需要 Node.js）</li>
+                        <li>勾选"代理模式"</li>
+                        <li>代理地址默认 <code>http://localhost:8888</code></li>
+                        <li>正常输入目标 API 的 URL，请求会自动通过代理转发</li>
+                    </ol>
+                </div>
+
                 <div class="tabs">
                     <button class="tab-btn active" data-tab="headers">请求头</button>
                     <button class="tab-btn" data-tab="body">请求体</button>
