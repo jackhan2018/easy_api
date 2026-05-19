@@ -2,6 +2,9 @@ document.addEventListener('DOMContentLoaded', function() {
     initTabs();
     initResponseTabs();
     initSendButton();
+    initBodyTypeChange();
+    initCurlUpdate();
+    updateCurlPreview();
 });
 
 function initTabs() {
@@ -21,7 +24,7 @@ function switchTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.remove('active');
     });
-    
+
     document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
     document.getElementById(`${tabName}-tab`).classList.add('active');
 }
@@ -43,7 +46,7 @@ function switchResponseTab(tabName) {
     document.querySelectorAll('.response-tab-content').forEach(content => {
         content.classList.remove('active');
     });
-    
+
     document.querySelector(`[data-resp-tab="${tabName}"]`).classList.add('active');
     document.getElementById(`${tabName}-tab`).classList.add('active');
 }
@@ -66,6 +69,7 @@ function addHeader() {
 
 function removeHeader(btn) {
     btn.parentElement.remove();
+    updateCurlPreview();
 }
 
 function getHeaders() {
@@ -90,13 +94,223 @@ function prettyPrintJSON(str) {
     }
 }
 
+const ALLOWED_FILE_TYPES = {
+    '.pdf': 'application/pdf',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.tiff': 'image/tiff'
+};
+
+function initBodyTypeChange() {
+    const bodyTypeSelect = document.getElementById('body-type');
+    bodyTypeSelect.addEventListener('change', function() {
+        const bodyContent = document.getElementById('body-content');
+        const formDataContainer = document.getElementById('form-data-container');
+
+        if (this.value === 'form') {
+            bodyContent.style.display = 'none';
+            formDataContainer.style.display = 'block';
+            if (document.getElementById('form-fields').children.length === 0) {
+                addFormTextField();
+            }
+        } else {
+            bodyContent.style.display = 'block';
+            formDataContainer.style.display = 'none';
+        }
+        updateCurlPreview();
+    });
+}
+
+function addFormTextField(key = '', value = '') {
+    const container = document.getElementById('form-fields');
+    const fieldRow = document.createElement('div');
+    fieldRow.className = 'form-field-row';
+    fieldRow.innerHTML = `
+        <input type="text" class="form-field-key" placeholder="Key" value="${key}">
+        <input type="text" class="form-field-value" placeholder="Value" value="${value}">
+        <button class="remove-btn" onclick="removeFormField(this)">×</button>
+    `;
+    container.appendChild(fieldRow);
+    attachFieldListeners(fieldRow);
+}
+
+function addFormFileField(key = '') {
+    const container = document.getElementById('form-fields');
+    const fieldRow = document.createElement('div');
+    fieldRow.className = 'form-field-row file-field-row';
+    fieldRow.innerHTML = `
+        <input type="text" class="form-field-key" placeholder="Key" value="${key}">
+        <input type="file" class="form-field-file" accept=".pdf,.png,.jpg,.jpeg,.tiff">
+        <span class="file-name"></span>
+        <button class="remove-btn" onclick="removeFormField(this)">×</button>
+    `;
+    container.appendChild(fieldRow);
+
+    const fileInput = fieldRow.querySelector('.form-field-file');
+    fileInput.addEventListener('change', function() {
+        const fileNameSpan = fieldRow.querySelector('.file-name');
+        if (this.files.length > 0) {
+            const file = this.files[0];
+            const ext = '.' + file.name.split('.').pop().toLowerCase();
+            if (!ALLOWED_FILE_TYPES[ext]) {
+                alert(`不支持的文件类型: ${ext}\n仅支持: PDF, PNG, JPG, TIFF`);
+                this.value = '';
+                fileNameSpan.textContent = '';
+            } else {
+                fileNameSpan.textContent = file.name;
+            }
+        } else {
+            fileNameSpan.textContent = '';
+        }
+        updateCurlPreview();
+    });
+
+    attachFieldListeners(fieldRow);
+}
+
+function removeFormField(btn) {
+    btn.parentElement.remove();
+    updateCurlPreview();
+}
+
+function attachFieldListeners(row) {
+    const inputs = row.querySelectorAll('input[type="text"]');
+    inputs.forEach(input => {
+        input.addEventListener('input', updateCurlPreview);
+    });
+}
+
+function getFormData() {
+    const fields = [];
+    const fieldRows = document.querySelectorAll('.form-field-row');
+    fieldRows.forEach(row => {
+        const key = row.querySelector('.form-field-key').value.trim();
+        if (!key) return;
+
+        if (row.classList.contains('file-field-row')) {
+            const fileInput = row.querySelector('.form-field-file');
+            if (fileInput.files.length > 0) {
+                fields.push({
+                    type: 'file',
+                    key: key,
+                    file: fileInput.files[0]
+                });
+            }
+        } else {
+            const value = row.querySelector('.form-field-value').value;
+            fields.push({
+                type: 'text',
+                key: key,
+                value: value
+            });
+        }
+    });
+    return fields;
+}
+
+function buildFormData() {
+    const formData = new FormData();
+    const fields = getFormData();
+    fields.forEach(field => {
+        if (field.type === 'file') {
+            formData.append(field.key, field.file);
+        } else {
+            formData.append(field.key, field.value);
+        }
+    });
+    return formData;
+}
+
+function initCurlUpdate() {
+    const urlInput = document.getElementById('url');
+    const methodSelect = document.getElementById('method');
+    const bodyTypeSelect = document.getElementById('body-type');
+    const bodyTextarea = document.getElementById('body');
+
+    urlInput.addEventListener('input', updateCurlPreview);
+    methodSelect.addEventListener('change', updateCurlPreview);
+    bodyTypeSelect.addEventListener('change', updateCurlPreview);
+    bodyTextarea.addEventListener('input', updateCurlPreview);
+
+    const headersContainer = document.getElementById('headers-container');
+    headersContainer.addEventListener('input', updateCurlPreview);
+}
+
+function updateCurlPreview() {
+    const curlPreview = document.getElementById('curl-preview');
+    const curl = generateCurlCommand();
+    curlPreview.textContent = curl;
+}
+
+function generateCurlCommand() {
+    const method = document.getElementById('method').value;
+    const url = document.getElementById('url').value;
+    const bodyType = document.getElementById('body-type').value;
+    const headers = getHeaders();
+
+    if (!url) {
+        return '# 请输入URL';
+    }
+
+    let curl = `curl -X ${method} "${url}"`;
+
+    for (const [key, value] of Object.entries(headers)) {
+        if (bodyType === 'form' && key.toLowerCase() === 'content-type') {
+            continue;
+        }
+        curl += ` \\\n  -H "${key}: ${value}"`;
+    }
+
+    if (bodyType === 'form') {
+        const fields = getFormData();
+        fields.forEach(field => {
+            if (field.type === 'file') {
+                const ext = '.' + field.file.name.split('.').pop().toLowerCase();
+                const mimeType = ALLOWED_FILE_TYPES[ext] || 'application/octet-stream';
+                curl += ` \\\n  -F "${field.key}=@${field.file.name};type=${mimeType}"`;
+            } else {
+                curl += ` \\\n  -F "${field.key}=${field.value}"`;
+            }
+        });
+    } else if (bodyType === 'json' || bodyType === 'text') {
+        const body = document.getElementById('body').value;
+        if (body && method !== 'GET' && method !== 'HEAD') {
+            const escapedBody = body.replace(/'/g, "'\"'\"'").replace(/"/g, '\\"');
+            curl += ` \\\n  -d "${escapedBody}"`;
+        }
+    }
+
+    return curl;
+}
+
+function copyCurl() {
+    const curlPreview = document.getElementById('curl-preview');
+    const text = curlPreview.textContent;
+    if (!text || text.startsWith('#')) {
+        alert('没有可复制的 cURL 命令');
+        return;
+    }
+
+    navigator.clipboard.writeText(text).then(() => {
+        const copyBtn = document.querySelector('.copy-btn');
+        const originalText = copyBtn.textContent;
+        copyBtn.textContent = '已复制!';
+        setTimeout(() => {
+            copyBtn.textContent = originalText;
+        }, 2000);
+    }).catch(err => {
+        console.error('复制失败:', err);
+        alert('复制失败，请手动复制');
+    });
+}
+
 async function sendRequest() {
     const method = document.getElementById('method').value;
     const url = document.getElementById('url').value;
     const bodyType = document.getElementById('body-type').value;
-    const body = document.getElementById('body').value;
     const headers = getHeaders();
-    
+
     if (!url) {
         alert('请输入URL');
         return;
@@ -120,8 +334,14 @@ async function sendRequest() {
             headers: headers
         };
 
-        if (method !== 'GET' && method !== 'HEAD' && body) {
-            options.body = body;
+        if (bodyType === 'form') {
+            delete options.headers['Content-Type'];
+            options.body = buildFormData();
+        } else if (method !== 'GET' && method !== 'HEAD') {
+            const body = document.getElementById('body').value;
+            if (body) {
+                options.body = body;
+            }
         }
 
         const response = await fetch(url, options);
@@ -130,7 +350,7 @@ async function sendRequest() {
 
         const contentType = response.headers.get('content-type');
         let responseText = '';
-        
+
         if (contentType && contentType.includes('application/json')) {
             const jsonData = await response.json();
             responseText = JSON.stringify(jsonData, null, 2);
@@ -157,7 +377,7 @@ async function sendRequest() {
     } catch (error) {
         const endTime = performance.now();
         const duration = (endTime - startTime).toFixed(2);
-        
+
         statusEl.textContent = '状态: 错误';
         timeEl.textContent = `时间: ${duration} ms`;
         responseBodyEl.textContent = `请求失败: ${error.message}\n\n注意: 如果目标API没有正确的CORS配置，浏览器会阻止跨域请求。`;
