@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Easy API - 轻量级API测试工具</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Easy API</h1>
+            <p>轻量级API测试工具</p>
+        </header>
+
+        <div class="main-content">
+            <div class="request-section">
+                <div class="request-header">
+                    <select id="method">
+                        <option value="GET">GET</option>
+                        <option value="POST">POST</option>
+                        <option value="PUT">PUT</option>
+                        <option value="DELETE">DELETE</option>
+                        <option value="PATCH">PATCH</option>
+                        <option value="OPTIONS">OPTIONS</option>
+                    </select>
+                    <input type="text" id="url" placeholder="输入请求URL (例如: https://api.example.com)" value="https://jsonplaceholder.typicode.com/posts">
+                    <button id="sendBtn">发送请求</button>
+                </div>
+
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="headers">请求头</button>
+                    <button class="tab-btn" data-tab="body">请求体</button>
+                </div>
+
+                <div class="tab-content active" id="headers-tab">
+                    <div id="headers-container">
+                        <div class="header-row">
+                            <input type="text" class="header-key" placeholder="Key" value="Content-Type">
+                            <input type="text" class="header-value" placeholder="Value" value="application/json">
+                            <button class="remove-btn" onclick="removeHeader(this)">×</button>
+                        </div>
+                    </div>
+                    <button class="add-btn" onclick="addHeader()">+ 添加请求头</button>
+                </div>
+
+                <div class="tab-content" id="body-tab">
+                    <select id="body-type">
+                        <option value="json">JSON</option>
+                        <option value="text">Text</option>
+                        <option value="form">Form Data</option>
+                    </select>
+                    <textarea id="body" placeholder="请求体内容">{
+  "title": "foo",
+  "body": "bar",
+  "userId": 1
+}</textarea>
+                </div>
+            </div>
+
+            <div class="response-section">
+                <div class="response-header">
+                    <h3>响应</h3>
+                    <div class="response-status">
+                        <span id="status">状态: --</span>
+                        <span id="time">时间: -- ms</span>
+                    </div>
+                </div>
+                <div class="response-tabs">
+                    <button class="response-tab-btn active" data-resp-tab="response-body">响应体</button>
+                    <button class="response-tab-btn" data-resp-tab="response-headers">响应头</button>
+                </div>
+                <div class="response-tab-content active" id="response-body-tab">
+                    <pre id="response-body"></pre>
+                </div>
+                <div class="response-tab-content" id="response-headers-tab">
+                    <pre id="response-headers"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
